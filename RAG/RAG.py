@@ -1,22 +1,40 @@
-from langchain_community.document_loaders import PyPDFLoader
-from langchain_text_splitters import RecursiveCharacterTextSplitter
-from openai import OpenAI
+# openai api key를 env 파일에서 불러오기 
 import os
 from dotenv import load_dotenv
 load_dotenv()
 os.environ["TOKENIZERS_PARALLELISM"] = "false"
 api_key = os.getenv("OPENAI_API_KEY")
-client = OpenAI(api_key=api_key)
 
-# -------------------------------------------------
+# ---------------------------------------------------------------------------------
+from datasets import load_dataset
+from langchain_classic.docstore.document import Document
 
-# PDF 파일 로드
-loader = PyPDFLoader("/Users/eomhyejin/Documents/RAG_chunking_project2/RAG/글쓰기보고서.pdf")
-documents = loader.load()
+# KorQuAD 1.0 학습 데이터셋 불러오기
+datasets = load_dataset('squad_kor_v1', split='train')
+sample = datasets[100]
+
+documents = []
+
+id = sample["id"]
+title = sample["title"]
+context = sample["context"]
+
+documents.append(
+    Document(
+        page_content=context, 
+        metadata={
+            "title" : title, 
+            "id" : id
+        }
+    )
+)
+
+# ---------------------------------------------------------------------------------
+from langchain_text_splitters import RecursiveCharacterTextSplitter
 
 # 청크 분할
 chunk_size = 200
-overlap_ratio = 0.1
+overlap_ratio = 0.2
 chunk_overlap = int(chunk_size * overlap_ratio)
 text_splitter = RecursiveCharacterTextSplitter(
     chunk_size=chunk_size,
@@ -26,7 +44,7 @@ text_splitter = RecursiveCharacterTextSplitter(
 chunks = text_splitter.split_documents(documents)
 print(f"문서를 {len(chunks)}개의 청크로 분할했습니다. ")
 
-# -------------------------------------------------
+# ---------------------------------------------------------------------------------
 from langchain_huggingface import HuggingFaceEmbeddings
 from langchain_community.vectorstores import Chroma
 
@@ -44,8 +62,7 @@ vectordb = Chroma.from_documents(
     persist_directory="./chroma_db"
 )
 
-# --------------------------------------------------
-
+# ---------------------------------------------------------------------------------
 from langchain_openai import ChatOpenAI
 from langchain_core.prompts import ChatPromptTemplate
 from langchain_core.output_parsers import StrOutputParser
@@ -94,7 +111,11 @@ rag_chain = (
     | StrOutputParser()
 )
 
-# 사용
-print(rag_chain.invoke("이 연구에서 어떤 방식으로 청킹 전략을 비교하려 하는가?"))
+# ---------------------------------------------------------------------------------
+# 샘플 테스트 
+question = sample["question"]
+real_answer = sample["answers"]["text"][0]
 
-# -----------------------------------------------------
+print("질문: ", question)
+print("정답: ", real_answer)
+print("모델 답: ", rag_chain.invoke(question))
