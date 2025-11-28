@@ -1,14 +1,17 @@
 from langchain_community.document_loaders import PyPDFLoader
 from langchain_text_splitters import RecursiveCharacterTextSplitter
-from pydantic import SecretStr
+from openai import OpenAI
 import os
+from dotenv import load_dotenv
+load_dotenv()
 os.environ["TOKENIZERS_PARALLELISM"] = "false"
 api_key = os.getenv("OPENAI_API_KEY")
+client = OpenAI(api_key=api_key)
 
-
+# -------------------------------------------------
 
 # PDF 파일 로드
-loader = PyPDFLoader("./글쓰기보고서.pdf")
+loader = PyPDFLoader("/Users/eomhyejin/Documents/RAG_chunking_project2/RAG/글쓰기보고서.pdf")
 documents = loader.load()
 
 # 청크 분할
